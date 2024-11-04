@@ -1,0 +1,78 @@
+-- Primeira parte do UNION: Exibe o total de itens na primeira linha
+SELECT ORDEM,
+       CLIENTE
+       DTEMISSAO,
+       ATENDENTE,
+       ORC001_ID,
+       PRAZOENTREGA_PREV,
+       QTDE_ITENS,
+       TOTAL_ITENS,
+       PRAZOENTREGA_CALC,
+       SITUACAO,
+       'ATUALIZADATA'
+        
+FROM
+-- Primeira parte do UNION: Exibe o total de itens na primeira linha
+(SELECT 'Total' AS ORDEM, -- O campo "ORDEM" ter� o valor "Total"
+       NULL AS CLIENTE,   -- Demais campos nulos, j� que voc� s� quer mostrar o total devido ao que o UNION vai entender
+       NULL AS DTEMISSAO,
+       NULL AS ATENDENTE,
+       NULL AS ORC001_ID,
+       NULL AS PRAZOENTREGA_PREV,
+       NULL AS QTDE_ITENS,
+       (SELECT SUM(COUNT(*)) -- Soma total dos itens
+          FROM ORTBC010 
+         WHERE ORC010_FILIAL = 0
+      GROUP BY ORC010_EMPRESA) AS TOTAL_ITENS,
+       NULL AS PRAZOENTREGA_CALC,
+       NULL AS SITUACAO,
+       'ATUALIZADATA'
+       
+FROM DUAL --TABELA AUXILIAR PARA VIRTUALIZAR
+
+UNION ALL --Script usado para unificar todo e qualquer registro da consulta em que deve listar
+
+-- Segunda parte do UNION: Exibe os dados detalhados da consulta, sem o total
+SELECT ORDEM,
+       CLIENTE,
+       DTEMISSAO,
+       ATENDENTE,
+       ORC001_ID,
+       TO_CHAR(PRAZOENTREGA,'DD/MM/RRRR') PRAZOENTREGA_PREV,
+       QTDE_ITENS,
+       NULL AS TOTAL_ITENS, -- Define NULL para n�o repetir o total nas demais linhas
+       TO_DATE(TO_CHAR(CASE 
+         WHEN QTDE_ITENS BETWEEN 1 AND 3 THEN
+            CQPGD001.CQFPD001001('ASSISTENCIA',DTEMISSAO,3,6)
+         WHEN QTDE_ITENS BETWEEN 4 AND 10 THEN
+            CQPGD001.CQFPD001001('ASSISTENCIA',DTEMISSAO,7,6)
+         WHEN QTDE_ITENS BETWEEN 11 AND 15 THEN
+            CQPGD001.CQFPD001001('ASSISTENCIA',DTEMISSAO,10,6)
+         WHEN QTDE_ITENS BETWEEN 16 AND 25 THEN
+            CQPGD001.CQFPD001001('ASSISTENCIA',DTEMISSAO,15,6)
+         WHEN QTDE_ITENS BETWEEN 26 AND 35 THEN
+            CQPGD001.CQFPD001001('ASSISTENCIA',DTEMISSAO,25,6)
+         WHEN QTDE_ITENS BETWEEN 36 AND 45 THEN
+            CQPGD001.CQFPD001001('ASSISTENCIA',DTEMISSAO,35,6)
+         WHEN QTDE_ITENS > 45 THEN
+            CQPGD001.CQFPD001001('ASSISTENCIA',DTEMISSAO,60,6)
+         END,'DD/MM/RRRR')) PRAZOENTREGA_CALC,
+       SITUACAO,
+       'ATUALIZADATA' --Schedule que possui view por tr�s do banco
+FROM (
+    SELECT ORC001_TIPODOC||'-'||ORC001_ORDEM ORDEM, 
+           PPA001_PESSOA||'-'||PPA001_NOME CLIENTE,
+           ORC001_DTEMISSAO DTEMISSAO,
+           ORC001_DTPRZENTREGA PRAZOENTREGA,
+           ORC001_ID,
+           (SELECT COUNT(*) 
+              FROM ORTBC010 
+             WHERE ORC010_ORC001_ID = ORC001_ID) QTDE_ITENS,
+           TAB168_DESCRICAO SITUACAO,
+           ORC001_ATENDENTE ATENDENTE  
+      FROM ORTBC001, PPTBA001, TATBB168
+     WHERE ORC001_PPA001_ID = PPA001_ID
+       AND ORC001_TAB168_ID = TAB168_ID
+       AND TAB168_DESCRICAO LIKE NVL(:SITUACAO,'%')
+    ORDER BY ORC001_DTPRZENTREGA ASC
+));
