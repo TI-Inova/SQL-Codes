@@ -1,0 +1,79 @@
+SELECT OCB001_TIPODOC TIPODOC, 
+        OCB001_ORDCOMPRA ORDEM, 
+        OCB001_LINHA LINHA, 
+         
+        OCB001_PRODUTO PRODUTO, 
+        OCB001_PRODDESC DESCRICAO, 
+         
+        OCB002_NRODOC DOC, 
+        OCB002_LINHADOC LINHADOC, 
+         
+        OCB001_DTENTREGASOL ENTR_SOL, 
+        OCB001_DTENTREGAPREV ENTR_PREV, 
+         
+        OCB001_QTDESOL QTD_SOL, 
+        OCB001_VLRTOTAL VALOR, 
+         
+       (SELECT SUM(ESC002_QUANTIDADE) 
+        FROM ESTBC002 
+        WHERE ESC002_GRUPO = OCB001_GRUPO 
+          AND ESC002_EMPRESA = OCB001_EMPRESA 
+          AND ESC002_FILIAL = OCB001_FILIAL 
+          AND ESC002_PRODUTO = OCB001_PRODUTO 
+          AND ESC002_PRODUTOCONF = OCB001_PRODUTOCONF 
+           
+          AND ESC002_ALMOXARIFADO IN ('1','14')) QTD, 
+         
+       (SELECT ESP001_CONSMEDQTDE 
+        FROM ESTBP001 
+        WHERE ESP001_GRUPO = OCB001_GRUPO 
+          AND ESP001_EMPRESA = OCB001_EMPRESA 
+          AND ESP001_FILIAL = OCB001_FILIAL 
+          AND ESP001_PRODUTO = OCB001_PRODUTO 
+          AND ESP001_PRODUTOCONF = OCB001_PRODUTOCONF 
+           
+          AND ESP001_FILIAL = 0) CONSUMO, 
+           
+           
+  ROUND(CASE 
+        WHEN (SELECT ESP001_CONSMEDQTDE 
+              FROM ESTBP001 
+              WHERE ESP001_GRUPO = OCB001_GRUPO 
+                AND ESP001_EMPRESA = OCB001_EMPRESA 
+                AND ESP001_FILIAL = OCB001_FILIAL 
+                AND ESP001_PRODUTO = OCB001_PRODUTO 
+                AND ESP001_PRODUTOCONF = OCB001_PRODUTOCONF 
+           
+                AND ESP001_FILIAL = 0) > 0 
+        THEN (SELECT SUM(ESC002_QUANTIDADE) 
+              FROM ESTBC002 
+              WHERE ESC002_GRUPO = OCB001_GRUPO 
+                AND ESC002_EMPRESA = OCB001_EMPRESA 
+                AND ESC002_FILIAL = OCB001_FILIAL 
+                AND ESC002_PRODUTO = OCB001_PRODUTO 
+                AND ESC002_PRODUTOCONF = OCB001_PRODUTOCONF 
+           
+                AND ESC002_ALMOXARIFADO IN ('1','14')) / (SELECT ESP001_CONSMEDQTDE 
+                                                          FROM ESTBP001 
+                                                          WHERE ESP001_GRUPO = OCB001_GRUPO 
+                                                            AND ESP001_EMPRESA = OCB001_EMPRESA 
+                                                            AND ESP001_FILIAL = OCB001_FILIAL 
+                                                            AND ESP001_PRODUTO = OCB001_PRODUTO 
+                                                            AND ESP001_PRODUTOCONF = OCB001_PRODUTOCONF 
+                                                       
+                                                            AND ESP001_FILIAL = 0) 
+        END, 2) ESTQ_MES 
+ 
+FROM OCTBB001, OCTBB002 
+ 
+WHERE OCB002_GRUPO = OCB001_GRUPO 
+  AND OCB002_EMPRESA = OCB001_EMPRESA 
+  AND OCB002_FILIAL = OCB001_FILIAL 
+  AND OCB002_TIPODOC = OCB001_TIPODOC 
+  AND OCB002_ORDCOMPRA = OCB001_ORDCOMPRA 
+  AND OCB002_LINHA = OCB001_LINHA 
+   
+  AND OCB002_NRODOC = 'ENTREPOSTO' 
+  AND OCB001_CODSITUACAO = 1 
+ 
+ORDER BY OCB001_ORDCOMPRA, OCB001_LINHA 
